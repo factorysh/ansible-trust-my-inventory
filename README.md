@@ -1,6 +1,5 @@
-Ansible trust ùy inventory
+Ansible trust my inventory
 ==========================
-
 
 When you are targeting moving hosts with Ansible,
 like in dev or test environment with vagrant, vm or cloud,
