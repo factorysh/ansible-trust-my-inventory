@@ -5,6 +5,12 @@ import subprocess
 import socket
 import logging
 from pathlib import Path
+import argparse
+
+
+parser = argparse.ArgumentParser(description='Fix your known_hosts with an axe')
+parser.add_argument('hosts', metavar='HOST', type=str, nargs='*', help='Hosts')
+parser.add_argument('-i', dest='inventory', help='Ansible inventory' )
 
 
 def hosts_from_inventory(inventory_path):
@@ -62,6 +68,12 @@ def fix_knownhosts(hosts):
 
 
 if __name__ == '__main__':
-    import sys
-    fix_knownhosts(hosts_from_inventory(sys.argv[1]))
+    args = parser.parse_args()
+    if args.inventory is None and len(args.hosts) == 0:
+        parser.print_help()
+    else:
+        hosts = args.hosts
+        if args.inventory is not None:
+            hosts += hosts_from_inventory(args.inventory)
+        fix_knownhosts(hosts)
 
