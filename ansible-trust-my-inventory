@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+
+import json
+import subprocess
+import socket
+import logging
+from pathlib import Path
+
+
+def hosts_from_inventory(inventory_path):
+    i = subprocess.run(['ansible-inventory', '-i', inventory_path,
+                        '--list', 'all'], capture_output=True)
+    i.check_returncode()
+    i = json.loads(i.stdout)
+    hosts = set()
+    for group in i['all']['children']:
+        if group not in i:
+            continue
+        for h in i[group]['hosts']:
+            hosts.add(h)
+    return list(hosts)
+
+
+def read_kh(txt):
+    lines = txt.split(b'\n')
+    key, t, signature  = lines[1].split(b' ')
+    return key, t, signature
+
+
+def fix_knownhosts(hosts):
+    for host in hosts:
+        subprocess.run(['ping', '-c1', '-i0.5', '-W5', host],
+                       capture_output=True).check_returncode()
+        ip=socket.gethostbyname(host)
+        refresh = False
+        signature = None
+        t = 'ecdsa'
+        for a in (ip, host):
+            sk = subprocess.run(['ssh-keygen', '-H', '-F', a],
+                                capture_output=True)
+            if sk.returncode == 0:
+                _, t, signature2 = read_kh(sk.stdout)
+            else:
+                if a == host:
+                    refresh = True
+            ks = subprocess.run(['ssh-keyscan', '-t', t, host],
+                                capture_output=True)
+            ks.check_returncode()
+            signature = ks.stdout[:-1].split(b' ')[2]
+            if sk.returncode == 0 and signature != signature2:
+                sk = subprocess.run(['ssh-keygen', '-R', a])
+                sk.check_returncode()
+                if a == host:
+                    refresh = True
+        if refresh:
+            p = Path.home() / '.ssh/known_hosts'
+            with p.open('a') as f:
+                _, t, signature = ks.stdout[:-1].decode('utf8').split(' ')
+                f.write("\n{host},{ip} {type} {signature}".format(
+                    host=host, ip=str(ip), type=t, signature=signature))
+        logging.debug(host, refresh, t, signature)
+
+
+if __name__ == '__main__':
+    import sys
+    fix_knownhosts(hosts_from_inventory(sys.argv[1]))
+
