@@ -14,7 +14,7 @@ You need on your path :
 
  * `ping`
  * openssh client (`ssh-keygen`, `ssh-keyscan`)
- * ansible (`ansible-invnetory`)
+ * ansible (`ansible-inventory`)
 
 
     ./ansible-trust-my-inventory path_to_an_inventory
