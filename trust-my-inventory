@@ -6,11 +6,13 @@ import socket
 import logging
 from pathlib import Path
 import argparse
+import sys
 
 
 parser = argparse.ArgumentParser(description='Fix your known_hosts with an axe')
 parser.add_argument('hosts', metavar='HOST', type=str, nargs='*', help='Hosts')
 parser.add_argument('--verbose', '-v', action='count', default=0)
+parser.add_argument('--stdin', action='store_true')
 parser.add_argument('-i', dest='inventory', help='Ansible inventory' )
 
 
@@ -71,12 +73,19 @@ def fix_knownhosts(hosts):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    logging.basicConfig(level=[logging.WARNING, logging.INFO, logging.DEBUG][args.verbose])
-    if args.inventory is None and len(args.hosts) == 0:
+
+    levels = [logging.WARNING, logging.INFO, logging.DEBUG]
+    logging.basicConfig(level=levels[args.verbose])
+
+    if args.inventory is None and len(args.hosts) == 0 and args.stdin is False:
         parser.print_help()
     else:
         hosts = args.hosts
         if args.inventory is not None:
             hosts += hosts_from_inventory(args.inventory)
+        if args.stdin:
+            for line in sys.stdin.readlines():
+                l = line.strip().split(' ')[0]
+                if l != '' and not l.startswith('#'):
+                    hosts.append(l)
         fix_knownhosts(hosts)
-
