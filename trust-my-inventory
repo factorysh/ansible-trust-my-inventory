@@ -16,9 +16,13 @@ parser.add_argument('--stdin', action='store_true')
 parser.add_argument('-i', dest='inventory', help='Ansible inventory' )
 
 
+def run(args):
+    return subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
 def hosts_from_inventory(inventory_path):
-    i = subprocess.run(['ansible-inventory', '-i', inventory_path,
-                        '--list', 'all'], capture_output=True)
+    i = run(['ansible-inventory', '-i', inventory_path,
+                        '--list', 'all'])
     i.check_returncode()
     i = json.loads(i.stdout)
     hosts = set()
@@ -36,29 +40,28 @@ def read_kh(txt):
     return key, t, signature
 
 
+
+
 def fix_knownhosts(hosts):
     for host in hosts:
         logging.info(host)
-        subprocess.run(['ping', '-c1', '-i0.5', '-W5', host],
-                       capture_output=True).check_returncode()
+        run(['ping', '-c1', '-i0.5', '-W5', host]).check_returncode()
         ip=socket.gethostbyname(host)
         refresh = False
         signature = None
         t = 'ecdsa'
         for a in (ip, host):
-            sk = subprocess.run(['ssh-keygen', '-H', '-F', a],
-                                capture_output=True)
+            sk = run(['ssh-keygen', '-H', '-F', a])
             if sk.returncode == 0:
                 _, t, signature2 = read_kh(sk.stdout)
             else:
                 if a == host:
                     refresh = True
-            ks = subprocess.run(['ssh-keyscan', '-t', t, host],
-                                capture_output=True)
+            ks = run(['ssh-keyscan', '-t', t, host])
             ks.check_returncode()
             signature = ks.stdout[:-1].split(b' ')[2]
             if sk.returncode == 0 and signature != signature2:
-                sk = subprocess.run(['ssh-keygen', '-R', a])
+                sk = run(['ssh-keygen', '-R', a])
                 sk.check_returncode()
                 if a == host:
                     refresh = True
